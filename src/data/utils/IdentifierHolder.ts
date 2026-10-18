@@ -3,7 +3,7 @@ import type { IIdentifier } from "../../core/utils/IIdentifier";
 
 export class IdentifierHolder implements IIdentifier {
     constructor(
-        private id: Identifier
+        private readonly id: Identifier
     ) {}
 
     public getIdentifier(): Identifier {
@@ -12,5 +12,13 @@ export class IdentifierHolder implements IIdentifier {
 
     public toIdentifier(): Identifier {
         return this.getIdentifier();
+    }
+
+    public toString(): string {
+        return this.id.toString();
+    }
+
+    public serialize(): string {
+        return this.toString();
     }
 }

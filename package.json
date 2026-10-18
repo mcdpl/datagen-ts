@@ -1,9 +1,14 @@
 {
   "name": "datagen-ts",
   "module": "index.ts",
+  "description": "A TypeScript library for creating Minecraft Java Edition datapacks.",
   "type": "module",
   "private": true,
+  "license": "MIT",
+  "main": "./src/index.ts",
   "scripts": {
+    "dev": "bun --watch examples/basic.ts",
+    "test": "bun test",
     "typecheck": "bun check"
   },
   "devDependencies": {

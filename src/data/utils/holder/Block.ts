@@ -13,5 +13,10 @@ export class Block<S extends Object> extends IdentifierHolder {
     }
     public setState(state: Partial<S>) {
         Object.assign(this.state, state);
+        return this;
+    }
+
+    public copy() {
+        return new Block(this.getIdentifier()).setState({...this.getState()})
     }
 }

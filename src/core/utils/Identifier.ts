@@ -17,4 +17,16 @@ export class Identifier implements IString, ISerializable {
     public serialize(): string {
         return this.toString();
     }
+
+    public static of(id: string): Identifier;
+    public static of(namespace: string, path: string): Identifier;
+    public static of(...args: [id: string] | [namespace: string, path: string]): Identifier {
+        if (args.length == 1) {
+            let id = args[0];
+            let [ns, path] = id.split(Identifier.SEPARATOR);
+            return new Identifier(ns, path);
+        } else {
+            return new Identifier(...args);
+        }
+    }
 }

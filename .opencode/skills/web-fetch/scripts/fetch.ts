@@ -10,15 +10,17 @@
  *   mcmeta <path>         vanilla data from misode/mcmeta (--ref, --version, --pin, --list)
  *   version               current mcmeta version + branch heads
  *   get <url>             raw fetch with cache (--json, --key a.b.0.c)
- *   html <file|url|->     extract from HTML (--select, --mode text|html|md, --attr, --limit)
+ *   html <file|url|->     extract from HTML (--select, --mode text|html|md, --attr, --limit, --sep)
  *
  * Global flags:
  *   --ttl <seconds>       cache freshness (default 86400)
  *   --refresh             ignore freshness, revalidate with ETag
  *   --no-cache            bypass cache entirely
+ *   --timeout <ms>        per-attempt timeout (default 30000)
  *   --out <file>          write full output to file, print only a summary
  *   --max-bytes <n>       stdout budget before truncation (default 50000)
  *   --no-truncate         never truncate
+ *   --quiet               no [fetch]/[cache] logging on stderr
  */
 
 import { createHash } from "node:crypto";
@@ -110,17 +112,40 @@ async function request(url: string, opts: RequestOpts = {}): Promise<string> {
   if (hit?.meta.etag) headers["if-none-match"] = hit.meta.etag;
   if (hit?.meta.lastModified) headers["if-modified-since"] = hit.meta.lastModified;
 
-  let res: Response;
-  try {
-    res = await fetch(url, { headers, redirect: "follow" });
-  } catch (err) {
+  let res: Response | undefined;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      res = await fetch(url, {
+        headers,
+        redirect: "follow",
+        signal: AbortSignal.timeout(NUM("timeout", 30_000)),
+      });
+      lastErr = undefined;
+    } catch (err) {
+      lastErr = err;
+      res = undefined;
+      if (attempt < 2) await Bun.sleep(400 * (attempt + 1));
+      continue;
+    }
+    if (res.status === 429 || res.status >= 500) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      if (attempt < 2) {
+        await Bun.sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 500 * (attempt + 1));
+      }
+      continue;
+    }
+    break;
+  }
+
+  if (!res) {
     if (hit) {
       if (!BOOL("quiet")) {
-        process.stderr.write(`[stale] network failed, serving cached copy: ${(err as Error).message}\n`);
+        process.stderr.write(`[stale] network failed, serving cached copy: ${(lastErr as Error)?.message}\n`);
       }
       return hit.body;
     }
-    throw err;
+    throw lastErr;
   }
 
   if (res.status === 304 && hit) {
@@ -131,7 +156,13 @@ async function request(url: string, opts: RequestOpts = {}): Promise<string> {
 
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText} for ${url}\n${text.slice(0, 400)}`);
+    const err = new Error(`${res.status} ${res.statusText} for ${url}`) as Error & {
+      status: number;
+      body: string;
+    };
+    err.status = res.status;
+    err.body = text;
+    throw err;
   }
 
   if (useCache) {
@@ -248,6 +279,7 @@ async function cmdWiki() {
 
   let text: string = BOOL("html") ? j.parse.text : j.parse.wikitext;
   if (!BOOL("html") && BOOL("plain")) text = plain(text);
+  if (BOOL("html") && flags.select) text = await extractHtml(text, htmlOpts());
   await emit(text);
 }
 
@@ -348,17 +380,21 @@ async function cmdMcmeta() {
   }
 
   if (BOOL("list")) {
-    const j = await getJson(`${GH_API}/contents/${path}?ref=${target}`, ttl);
-    if (j?.message) {
-      if (j.message === "Not Found") {
+    let j: any;
+    try {
+      j = await getJson(`${GH_API}/contents/${path}?ref=${target}`, ttl);
+    } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e.status === 404) {
         fail(
-          `not found: ${path} in ref ${ref}\n` +
-            `hint: pick the branch with --ref (${BRANCHES.join(", ")}) and remember each branch\n` +
-            `      already contains its own root dir, e.g. --ref data data/minecraft/recipe`,
+          `not found: ${path} (ref ${ref})\n` +
+            `hint: choose the branch with --ref (${BRANCHES.join(", ")});\n` +
+            `      each branch has its own root dir, e.g. --ref data data/minecraft/recipe`,
         );
       }
-      fail(j.message);
+      fail(e.message);
     }
+    if (j?.message) fail(String(j.message));
     const rows = (Array.isArray(j) ? j : [j]).map(
       (e: any) => `${e.type === "dir" ? "d" : "f"}\t${String(e.size ?? 0).padStart(9)}\t${e.name}`,
     );
@@ -421,6 +457,11 @@ function toText(html: string): string {
 
 function toMarkdown(html: string): string {
   let s = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "");
+  // keep table cells on one line so markdown rows stay intact
+  s = s.replace(/<(td|th)([^>]*)>([\s\S]*?)<\/\1>/gi, (_, tag, attrs, content) => {
+    return `<${tag}${attrs}>${content.replace(/\s+/g, " ").trim()}</${tag}>`;
+  });
+  s = s.replace(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, (_, row) => `<tr>${row.replace(/>\s+</g, "><")}</tr>`);
   s = s
     .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, n, t) => `\n${"#".repeat(+n)} ${toText(t)}\n`)
     .replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, (_, c) => `\n\`\`\`\n${decodeEntities(c.replace(/<[^>]+>/g, ""))}\n\`\`\`\n`)
@@ -445,19 +486,12 @@ function toMarkdown(html: string): string {
     .trim();
 }
 
-async function cmdHtml() {
-  const src = positional[1];
-  if (!src) fail("missing <file|url|->");
-
-  let html: string;
-  if (src === "-") html = await readStdin();
-  else if (/^https?:\/\//.test(src)) html = await request(src, { headers: { accept: "text/html" } });
-  else html = await readFile(src, "utf8");
-
-  const selector = STR("select", "body");
-  const limit = NUM("limit", Number.POSITIVE_INFINITY);
-  const attr = flags.attr ? STR("attr") : null;
-  const unique = BOOL("unique");
+async function extractHtml(
+  html: string,
+  opts: { selector: string; mode: string; limit?: number; sep?: string; attr?: string | null; unique?: boolean },
+): Promise<string> {
+  const { selector, attr } = opts;
+  const limit = opts.limit ?? Number.POSITIVE_INFINITY;
 
   if (attr) {
     const values: string[] = [];
@@ -470,8 +504,8 @@ async function cmdHtml() {
       })
       .transform(new Response(html))
       .text();
-    const out = unique ? [...new Set(values)] : values;
-    return emit(out.slice(0, limit).join("\n"));
+    const out = opts.unique ? [...new Set(values)] : values;
+    return out.slice(0, limit).join("\n");
   }
 
   const tag = `wf-${Math.random().toString(36).slice(2, 10)}`;
@@ -497,12 +531,37 @@ async function cmdHtml() {
 
   if (!matches.length) {
     process.stderr.write(`no match for selector: ${selector}\n`);
-    return emit("");
+    return "";
   }
 
-  const mode = STR("mode", "text");
-  const rendered = matches.map((m) => (mode === "html" ? m.trim() : mode === "md" ? toMarkdown(m) : toText(m)));
-  await emit(rendered.join("\n\n---\n\n"));
+  const sep = opts.sep ?? "\n\n---\n\n";
+  const rendered = matches.map((m) =>
+    opts.mode === "html" ? m.trim() : opts.mode === "md" ? toMarkdown(m) : toText(m),
+  );
+  return rendered.join(sep);
+}
+
+function htmlOpts() {
+  return {
+    selector: STR("select", "body"),
+    mode: STR("mode", "text"),
+    limit: NUM("limit", Number.POSITIVE_INFINITY),
+    sep: STR("sep", "\n\n---\n\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t"),
+    attr: flags.attr ? STR("attr") : null,
+    unique: BOOL("unique"),
+  };
+}
+
+async function cmdHtml() {
+  const src = positional[1];
+  if (!src) fail("missing <file|url|->");
+
+  let html: string;
+  if (src === "-") html = await readStdin();
+  else if (/^https?:\/\//.test(src)) html = await request(src, { headers: { accept: "text/html" } });
+  else html = await readFile(src, "utf8");
+
+  await emit(await extractHtml(html, htmlOpts()));
 }
 
 // ---------------------------------------------------------------- get
@@ -545,8 +604,8 @@ function help() {
       `  mcmeta <path>       vanilla data (--ref data|registries|summary, --version V, --pin SHA, --list)\n` +
       `  version             current mcmeta version + branch heads\n` +
       `  get <url>           raw fetch (--json, --key a.b.0.c)\n` +
-      `  html <file|url|->   extract (--select CSS --mode text|html|md --attr NAME --limit N)\n\n` +
-      `global: --ttl S --refresh --no-cache --out FILE --max-bytes N --no-truncate --quiet\n`,
+      `  html <file|url|->   extract (--select CSS --mode text|html|md --attr NAME --limit N --sep S)\n\n` +
+      `global: --ttl S --refresh --no-cache --timeout MS --out FILE --max-bytes N --no-truncate --quiet\n`,
   );
 }
 

@@ -1,7 +1,8 @@
 import type { ISerializable } from "../interfaces/ISerializable";
 import type { IString } from "../interfaces/IString";
+import type { IIdentifier } from "./IIdentifier";
 
-export class Identifier implements IString, ISerializable {
+export class Identifier implements IString, ISerializable, IIdentifier {
     public static readonly SEPARATOR = ':';
     private constructor(
         private readonly namespace: string,
@@ -28,5 +29,9 @@ export class Identifier implements IString, ISerializable {
         } else {
             return new Identifier(...args);
         }
+    }
+
+    public toIdentifier(): Identifier {
+        return this;
     }
 }

@@ -401,7 +401,20 @@ async function cmdMcmeta() {
     return emit(rows.join("\n"));
   }
 
-  const text = await request(`${RAW}/${target}/${path}`, { ttl });
+  let text: string;
+  try {
+    text = await request(`${RAW}/${target}/${path}`, { ttl });
+  } catch (err) {
+    const e = err as Error & { status?: number };
+    if (e.status === 404) {
+      fail(
+        `not found: ${path} (ref ${ref})\n` +
+          `hint: the branch root is part of the path — e.g. --ref data data/minecraft/recipe/...\n` +
+          `      list a directory first with: mcmeta --list <dir> --ref ${ref === "summary" ? "data" : ref}`,
+      );
+    }
+    throw err;
+  }
   if (/\.(json|mcmeta)$/.test(path)) {
     try {
       return emit(JSON.stringify(JSON.parse(text), null, BOOL("raw") ? 0 : 2));

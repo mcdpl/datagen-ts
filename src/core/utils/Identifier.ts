@@ -35,3 +35,6 @@ export class Identifier implements IString, ISerializable, IIdentifier {
         return this;
     }
 }
+export const MINECRAFT_ID = function(path: string): Identifier {
+    return Identifier.of("minecraft", path);
+}

@@ -1,7 +1,8 @@
 import type { ISerializable } from "./interfaces/ISerializable";
+import type { ISizable } from "./interfaces/ISizable";
 import type { IString } from "./interfaces/IString";
 
-export class McFunction implements IString, ISerializable {
+export class McFunction implements IString, ISerializable, ISizable {
     private readonly name: string;
     private readonly commands: string[] = [];
 
@@ -23,5 +24,8 @@ export class McFunction implements IString, ISerializable {
     }
     public toString(): string {
         return this.serialize();
+    }
+    public getSize(): number {
+        return this.commands.length;
     }
 }

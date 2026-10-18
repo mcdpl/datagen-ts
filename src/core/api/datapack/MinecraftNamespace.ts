@@ -1,8 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { McFunction } from "../../McFunction";
+import { FunctionTag } from "./FunctionTag";
 import { Namespace } from "./Namespace";
-import { Tag } from "./Tag";
 
 /**
  * O namespace `minecraft` de um data pack.
@@ -14,32 +11,15 @@ import { Tag } from "./Tag";
  */
 export class MinecraftNamespace extends Namespace {
     /** Functions executadas quando o data pack é carregado (`#minecraft:load`). */
-    public readonly LOAD: Tag<McFunction>;
+    public readonly LOAD: FunctionTag;
     /** Functions executadas a cada tick (`#minecraft:tick`). */
-    public readonly TICK: Tag<McFunction>;
+    public readonly TICK: FunctionTag;
 
     public constructor() {
         super("minecraft");
-        this.LOAD = new Tag("load");
-        this.TICK = new Tag("tick");
-    }
-
-    public override build(at: string): void {
-        super.build(at);
-
-        const tagsDir = join(at, "tags", "function");
-        for (const tag of [this.LOAD, this.TICK]) {
-            const values = tag.get().map((fn) =>
-                (fn.getIdentifier() ?? this.identify(fn.getName())).toString()
-            );
-            if (values.length === 0) continue;
-
-            mkdirSync(tagsDir, { recursive: true });
-            writeFileSync(
-                join(tagsDir, `${tag.getName()}.json`),
-                `${JSON.stringify({ values }, null, 2)}\n`,
-                "utf8"
-            );
-        }
+        this.LOAD = new FunctionTag("load");
+        this.TICK = new FunctionTag("tick");
+        this.addTag(this.LOAD);
+        this.addTag(this.TICK);
     }
 }

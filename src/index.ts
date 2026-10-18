@@ -1,5 +1,10 @@
 export { McFunction } from "./core/McFunction";
+export { Block } from "./core/api/world/Block";
+export { BlockTag } from "./core/api/datapack/BlockTag";
 export { DataPack, DATA_PACK_FORMAT } from "./core/api/datapack/DataPack";
+export { FunctionTag } from "./core/api/datapack/FunctionTag";
+export { ItemTag } from "./core/api/datapack/ItemTag";
 export { MinecraftNamespace } from "./core/api/datapack/MinecraftNamespace";
 export { Namespace } from "./core/api/datapack/Namespace";
 export { Tag } from "./core/api/datapack/Tag";
+export type { TagLike, TagType } from "./core/api/datapack/Tag";

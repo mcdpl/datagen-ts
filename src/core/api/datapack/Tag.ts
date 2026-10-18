@@ -1,16 +1,40 @@
 /**
- * Um registro ordenado de entradas, usado por function tags
- * (por exemplo `#minecraft:load` e `#minecraft:tick`).
+ * Tipo de uma tag, que também define a pasta onde ela é salva:
+ * `tags/function`, `tags/item` ou `tags/block`.
+ */
+export type TagType = "function" | "item" | "block";
+
+/**
+ * Visão não-genérica de uma tag, usada pelo `Namespace` para
+ * armazenar e serializar tags de tipos diferentes.
+ */
+export interface TagLike {
+    getName(): string;
+    getType(): TagType;
+    getSize(): number;
+    /** Valores serializados da tag (ex.: `minecraft:stone`). */
+    getValues(namespace: string): string[];
+}
+
+/**
+ * Um registro ordenado de entradas, usado por tags.
  *
  * Funciona como um conjunto: adicionar, pegar e remover entradas.
  */
-export class Tag<T> {
+export class Tag<T> implements TagLike {
     private readonly entries: T[] = [];
 
-    constructor(private readonly name: string) {}
+    constructor(
+        private readonly name: string,
+        private readonly type: TagType = "function",
+    ) {}
 
     public getName(): string {
         return this.name;
+    }
+
+    public getType(): TagType {
+        return this.type;
     }
 
     /** Adiciona uma entrada. Lança erro se ela já estiver na tag. */
@@ -46,5 +70,20 @@ export class Tag<T> {
 
     public getSize(): number {
         return this.entries.length;
+    }
+
+    /** Valores serializados, no formato aceito pelo JSON da tag. */
+    public getValues(namespace: string): string[] {
+        return this.entries.map((entry) => this.toValue(entry, namespace));
+    }
+
+    /**
+     * Converte uma entrada no valor da tag.
+     *
+     * Subclasses sobrescrevem para usar o identificador correto
+     * (functions, items, blocks).
+     */
+    protected toValue(entry: T, _namespace: string): string {
+        return String(entry);
     }
 }

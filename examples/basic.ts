@@ -1,3 +1,8 @@
-import { hello } from "../src/index";
+import { McFunction } from "../src/core/McFunction";
 
-console.log(hello())
+const fn = new McFunction("foo");
+
+fn.addCommand("say foo");
+fn.addCommand("say bar");
+
+console.log(fn.serialize());

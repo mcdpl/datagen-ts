@@ -1,3 +1,4 @@
+import { FunctionContext } from "./api/function/FunctionContext";
 import type { ISerializable } from "./interfaces/ISerializable";
 import type { ISizable } from "./interfaces/ISizable";
 import type { IString } from "./interfaces/IString";
@@ -27,5 +28,14 @@ export class McFunction implements IString, ISerializable, ISizable {
     }
     public getSize(): number {
         return this.commands.length;
+    }
+
+    public do(callback: (ctx: FunctionContext) => any): this {
+        let ctx = new FunctionContext();
+        callback(ctx);
+        ctx.getCommands().forEach(v => {
+            this.addCommand(v.serialize());
+        });
+        return this;
     }
 }

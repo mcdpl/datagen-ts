@@ -8,5 +8,8 @@ export { Namespace } from "./core/api/datapack/Namespace";
 export { Tag } from "./core/api/datapack/Tag";
 export type { TagLike, TagType } from "./core/api/datapack/Tag";
 export { Blocks } from "./data/enums/Blocks";
+export { Items } from "./data/enums/Items";
+export type { ItemComponents, JsonObject, JsonValue } from "./data/enums/Items";
 export { IdentifierHolder } from "./data/utils/IdentifierHolder";
 export { Block } from "./data/utils/holder/Block";
+export { Item } from "./data/utils/holder/Item";

@@ -1,4 +1,4 @@
-import { McFunction } from "../src/core/McFunction";
+import { McFunction } from "../src";
 
 const fn = new McFunction("foo");
 

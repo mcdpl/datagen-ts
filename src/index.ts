@@ -1,3 +1,1 @@
-export function hello(): string {
-    return "Hello from MCDPL!";
-}
+export { McFunction } from "./core/McFunction";

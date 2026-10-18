@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { MinecraftNamespace } from "./MinecraftNamespace";
 import { Namespace } from "./Namespace";
 
 /**
@@ -11,6 +12,9 @@ import { Namespace } from "./Namespace";
  * @see https://minecraft.wiki/w/Data_pack
  */
 export class DataPack {
+    /** Namespace `minecraft`, com as tags `LOAD` e `TICK`. */
+    public readonly MINECRAFT: MinecraftNamespace;
+
     private readonly namespaces: Namespace[] = [];
     private description: string;
 
@@ -23,6 +27,8 @@ export class DataPack {
         description: string = "a mcdpl output",
     ) {
         this.description = description;
+        this.MINECRAFT = new MinecraftNamespace();
+        this.namespaces.push(this.MINECRAFT);
     }
 
     public getName(): string {

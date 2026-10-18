@@ -39,6 +39,7 @@ export class Namespace {
             );
         }
         this.functions.push(fn);
+        fn.setNamespace(this.name);
         return this;
     }
 
@@ -53,6 +54,8 @@ export class Namespace {
      * as functions vão para `at/function/<name>.mcfunction`.
      */
     public build(at: string): void {
+        if (this.functions.length === 0) return;
+
         const functionDir = join(at, "function");
         mkdirSync(functionDir, { recursive: true });
 

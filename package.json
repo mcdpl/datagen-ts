@@ -9,6 +9,9 @@
   "scripts": {
     "dev:build": "bun examples/basic.ts",
     "dev": "bun --watch examples/basic.ts",
+    "generate:blocks": "bun scripts/generate-blocks.ts",
+    "generate:block-entities": "bun scripts/generate-block-entities.ts",
+    "generate:items": "bun scripts/generate-items.ts",
     "test": "bun test",
     "typecheck": "bun check"
   },

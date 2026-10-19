@@ -15,6 +15,10 @@ export class Item<C extends Object> extends IdentifierHolder {
         Object.assign(this.components, components);
         return this;
     }
+    public set<K extends keyof C>(k: K, v: C[K]) {
+        this.components[k] = v
+        return this;
+    }
     public get<K extends keyof C>(key: K): C[K] | null {
         return this.getComponents()[key] ?? null;
     }

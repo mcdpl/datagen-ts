@@ -56,11 +56,12 @@ const properties = blocks.map((id) => {
     const name = toConstantName(path);
     const stateType = toStateType(stateProperties);
 
-    return `    public static readonly ${name} = new Block<${stateType}>(Identifier.of(${JSON.stringify(namespace)}, ${JSON.stringify(path)}));`;
+    return `    public static readonly ${name} = new Block<${stateType}, BlockEntityDataByBlock[${JSON.stringify(path)}]>(Identifier.of(${JSON.stringify(namespace)}, ${JSON.stringify(path)}));`;
 });
 
 const output = `import { Identifier } from "../../core/utils/Identifier";
 import { Block } from "../utils/holder/Block";
+import type { BlockEntityDataByBlock } from "./BlockEntityData";
 
 export class Blocks {
 ${properties.join("\n")}

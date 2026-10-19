@@ -1,0 +1,43 @@
+use ::java::util::slot::SlottedItem
+
+dispatch minecraft:block_entity[furnace, blast_furnace, smoker] to struct Furnace {
+	...super::BlockEntity,
+	...super::Nameable,
+	...super::Lockable,
+	/// The items in this furnace, with slots:
+	/// * 0: Item being smelted
+	/// * 1: Fuel
+	/// * 2: Output
+	Items?: [SlottedItem<byte @ 0..2>] @ 0..3,
+	#[until="1.21.4"] ...struct {
+		/// Ticks until the current fuel runs out.
+		BurnTime?: short,
+		/// Ticks the item has been smelting for.
+		CookTime?: short,
+		/// Total ticks the item will take to be smelted.
+		CookTimeTotal?: short,
+	},
+	#[since="1.21.4"] ...struct {
+		/// The total amount of time the current cooking process will take. Defaults to `0`.
+		cooking_total_time?: (#[until="26.3"] short | #[since="26.3"] int),
+		/// The amount of time that the current cooking process has taken so far. Defaults to `0`.
+		cooking_time_spent?: (#[until="26.3"] short | #[since="26.3"] int),
+		/// The amount of burn time remaining. Defaults to `0`.
+		lit_time_remaining?: (#[until="26.3"] short | #[since="26.3"] int),
+		/// The total amount of burn time that was added in the last refuel. Defaults to `0`.
+		lit_total_time?: (#[until="26.3"] short | #[since="26.3"] int),
+		/// Used to speed up or slow down the next cooking process. Defaults to `1`.
+		#[since="26.3"]
+		speed_multiplier?: float,
+	},
+	/// Recipes that have been used since the last time a result item was removed from the GUI. Used to calculate the experience to give to the player.
+	#[since="1.16"]
+	RecipesUsed?: struct RecipesUsed {
+		/// How many times this recipe has been used.
+		[#[id="recipe"] string]: int,
+	},
+}
+
+dispatch minecraft:block[furnace] to minecraft:block_entity[furnace]
+dispatch minecraft:block[blast_furnace] to minecraft:block_entity[blast_furnace]
+dispatch minecraft:block[smoker] to minecraft:block_entity[smoker]

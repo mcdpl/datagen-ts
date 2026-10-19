@@ -1,0 +1,21 @@
+use ::java::util::block_state::BlockState
+use ::java::util::direction::DirectionByte
+use ::java::util::direction::DirectionInt
+
+dispatch minecraft:block_entity[moving_piston] to struct MovingPiston {
+	...super::BlockEntity,
+	/// Moving block represented by the moving piston.
+	blockState?: BlockState,
+	/// The direction it is moving.
+	facing?: (
+		#[until="1.21.5"] DirectionInt |
+		#[since="1.21.5"] DirectionByte |
+	),
+	/// How far it has moved.
+	progress?: float,
+	extending?: boolean,
+	/// Whether the moving piston is the piston head.
+	source?: boolean,
+}
+
+dispatch minecraft:block[moving_piston] to minecraft:block_entity[moving_piston]
